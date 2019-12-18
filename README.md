@@ -11,29 +11,29 @@ Our goals include:
 
 ## Table of contents
 
-- [Identities and Authentication](#Identities%20and%20Authentication)
+- [Identities and Authentication](#Identities-and-Authentication)
 - [Discovery](#Discovery)
-    - [Public Names & Verifiable Identities](#Public%20Names%20%26%20Verifiable%20Identities)
-    - [Handshake Protocol](#Handshake%20Protocol)
-    - [Key-exchange Protocol](#Key-exchange%20Protocol)
-- [Private Channel Protocol](#Private%20Channel%20Protocol)
-- [Group Protocol](#Group%20Protocol)
-    - [Access Control](#Access%20Control)
-    - [Temporary Access](#Temporary%20Access)
+    - [Public Names & Verifiable Identities](#Public-Names-%26-Verifiable-Identities)
+    - [Handshake Protocol](#Handshake-Protocol)
+    - [Key-exchange Protocol](#Key-exchange-Protocol)
+- [Private Channel Protocol](#Private-Channel-Protocol)
+- [Group Protocol](#Group-Protocol)
+    - [Access Control](#Access-Control)
+    - [Temporary Access](#Temporary-Access)
 - [Posts](#Posts)
-    - [Public Posts](#Public%20Posts)
-    - [Recent Post Feed](#Recent%20Post%20Feed)
-    - [Private Posts](#Private%20Posts)
-- [Real-time Data](#Real-time%20Data)
+    - [Public Posts](#Public-Posts)
+    - [Recent Post Feed](#Recent-Post-Feed)
+    - [Private Posts](#Private-Posts)
+- [Real-time Data](#Real-time-Data)
     - [Chat](#Chat)
-    - [Streaming and Recording](#Streaming%20and%20Recording)
-- [Multi-device Access](#Multi-device%20Access)
-    - [Authenticating with QR Code](#Authenticating%20with%20QR%20Code)
-    - [Web Login](#Web%20Login)
-- [Backup & Recovery](#Backup%20%26%20Recovery)
-    - [Social Recovery](#Social%20Recovery)
-    - [Link Encryption](#Link%20Encryption)
-    - [Private Network](#Private%20Network)
+    - [Streaming and Recording](#Streaming-and-Recording)
+- [Multi-device Access](#Multi-device-Access)
+    - [Authenticating with QR Code](#Authenticating-with-QR-Code)
+    - [Web Login](#Web-Login)
+- [Backup & Recovery](#Backup-%26-Recovery)
+    - [Social Recovery](#Social-Recovery)
+    - [Link Encryption](#Link-Encryption)
+    - [Private Network](#Private-Network)
 
 
 ## Identities and Authentication
@@ -46,7 +46,7 @@ By using Ethereum key pairs as the identities in the protocol means that they ma
 
 There is also a well known issue about Ethereum key pairs that they are basically very long numbers that are impossible for people to memorize so we have to rely on our applications to keep them secret and only provide access to authorized users. This can be more easily done on mobile with encryption and biometric identification and it's a more challenging in the browser because at the moment there is no standardised API to do this. So the status quo is to rely on 3rd party installations in the form of browser extensions and it raises trust and usability questions.
 
-We address some of this issues later (see [Verifiable Identities](#Verifiable%20Identities), [Web Login](#Web%20Login) and [Backup & Recovery](#Backup%20%26%20Recovery)) but we also work with the assumption that social protocols and applications are better suited for mobile platforms just because almost everyone has a mobile device handy and that's also where most of the content creation and consumption happens anyway.
+We address some of this issues later (see [Verifiable Identities](#Verifiable-Identities), [Web Login](#Web-Login) and [Backup & Recovery](#Backup-%26-Recovery)) but we also work with the assumption that social protocols and applications are better suited for mobile platforms just because almost everyone has a mobile device handy and that's also where most of the content creation and consumption happens anyway.
 
 Finally, authentication in this system relies on the knowledge of the private key and this can be used to calculate shared secrets or sign messages.
 
@@ -66,24 +66,38 @@ It turns out that is possible to have a system where these two approaches can co
 
 For those people and applications that wish to remain anonymous and undiscoverable by default the protocol offers a way for two parties to establish an encrypted channel so that they can exchange information later privately. We call this the Handshake protocol and it is a 4-step process. The protocol usually starts with one party either scanning a QR code in person or sending a link to the other on an existing channel.
 
+We would like this protocol have the following properties:
+- The handshake produces a shared secret that can be used with a bulk encryption cypher for exchanging further messages
+- A man-in-the-middle can be detected with the help of verification
+- Past handshakes cannot be replayed
+
 `TODO describe the protocol and verification with illustration`
 
-Security properties of the handshake protocol:
-- The handshake produces a shared secret that can be used with a bulk encryption cypher for exchanging further messages.
-- A man-in-the-middle can be detected with the help of verification
-- Past handshakes cannot be replayed.
+There are two participants in the protocol, Alice and Bob. Both of them generate a random, ephemeral key pair, only used during the handshake (`HandshakeKeyPair`).
 
-Once there is an established, ephemeral, encrypted channel the parties can decide how they want to use it. It's possible that they just want to send one-time information to each other without revealing their real identities. Or they can decide to use this channel to [exchange their public key](#Key-exchange%20Protocol) belonging their identities in a social app, therefore they can stay in touch and send messages later too.
+1. The first step of the protocol is that Alice also generates a random, ephemeral key pair (`SharedKeyPair`) and shares its private key with Bob, for example in the form of a QR code or a link. The shared private key is used to have a feed address that is known by both parties and they can also write in it with a convention defined in the protocol.
+
+2. Then Alice waits for Bob to write a [hash commitment](https://en.wikipedia.org/wiki/Commitment_scheme)  as the 0th element of the feed. The hash commitment is the hash of Bob's public key of his `HandshakeKeyPair`. This is used to detect man-in-the-middle attacks with the protocol.
+
+3. After this Alice shares her public key of her `HandshakeKeyPair` as the 1st element of the feed.
+
+4. Finally Bob shares his public key of his `HandshakeKeyPair` as the 2nd element of the feed. Alice verifies that the hash of Bob's public key is indeed equal to what Bob sent in the 2nd step.
+
+At this point they both know each others' public keys and they can calculate a shared secret with it. It's advised to do an extra verification step out of band to detect that there were no man-in-the-middle by calculating a [short hash](https://en.wikipedia.org/wiki/ZRTP#SAS) from the shared secret and displaying it to the users.
+
+The communication after this happens at two addresses calculated with a convention. Alice's and Bob's updates will be found in their respective address that of their `HandshakeKeyPair` with the topic set to the hash of the shared secret.
+
+Once there is an established, ephemeral, encrypted channel the parties can decide how they want to use it. It's possible that they just want to send one-time information to each other without revealing their real identities. Or they can decide to use this channel to [exchange their public key](#Key-exchange-Protocol) belonging their identities in a social app, therefore they can stay in touch and send messages later too.
 
 ### Key-exchange Protocol
 
-After having an encrypted channel, public key exchange is really just publishing one's public keys to others. Once two parties know each others' key, a new secret can be calculated and that can be the basis of a [private channel communication](#Private%20Channel%20Protocol), preferably as a seed to something have more advanced secrecy properties, for example a triple-ratchet protocol.
+After having an encrypted channel, public key exchange is really just publishing one's public keys to others. Once two parties know each others' key, a new secret can be calculated and that can be the basis of a [private channel communication](#Private-Channel-Protocol), preferably as a seed to something have more advanced secrecy properties, for example a triple-ratchet protocol.
 
-This applies to [group messaging](#Group%20Protocol) as well.
+This applies to [group messaging](#Group-Protocol) as well.
 
 ## Private Channel Protocol
 
-In many cases it is desirable that the communication channel is set up between exactly two parties. In theory this could be achieved as a special case for a [group messaging protocol](#Group%20Protocol) but in practice we found that it's better to have a separate protocol for this use-case.
+In many cases it is desirable that the communication channel is set up between exactly two parties. In theory this could be achieved as a special case for a [group messaging protocol](#Group-Protocol) but in practice we found that it's better to have a separate protocol for this use-case.
 
 Usually this means that an application maintains a list of identities whom with it already did a public key exchange (e.g. contacts) and actively looks for updates at a known location that is defined with a convention.
 
@@ -95,7 +109,7 @@ In our case the `address` is the address belonging to the public key of the peer
 
 It is very common in social applications that more than two people are involved in the communication. The obvious solution would be to give access to some kind of shared resource, but that would practically require to share one or more private keys, which has many disadvantages. Instead we can implement this in a decentralized system by aggregating the individual updates and displaying them as if the group were updated.
 
-In the protocol a group is created by one person who later can invite other people. Everyone else can be invited by either using an existing [private channel](#Private%20Channel%20Protocol) or creating an ad-hoc one-time channel with the help of the [Handshake protocol](#Handshake%20Protocol).
+In the protocol a group is created by one person who later can invite other people. Everyone else can be invited by either using an existing [private channel](#Private-Channel-Protocol) or creating an ad-hoc one-time channel with the help of the [Handshake protocol](#Handshake-Protocol).
 
 `TODO describe invite protocol, tradeoffs`
 
